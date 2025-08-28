@@ -20,7 +20,7 @@ export default function StoresPage() {
     if (address) params.set('address', address);
     params.set('sortBy', sortBy);
     params.set('sortOrder', sortOrder);
-    const res = await fetch(`/api/stores?${params.toString()}`, { headers: { ...authHeader(token) } });
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/stores?${params.toString()}`, { headers: { ...authHeader(token) } });
     if (!res.ok) {
       setStores([]);
     } else {
@@ -33,7 +33,7 @@ export default function StoresPage() {
   useEffect(() => { load(); }, []);
 
   const submitRating = async (storeId: string, value: number) => {
-    const res = await fetch('/api/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader(token) }, body: JSON.stringify({ storeId, value }) });
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ratings`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader(token) }, body: JSON.stringify({ storeId, value }) });
     if (res.ok) {
       setMyRatings((r) => ({ ...r, [storeId]: value }));
       load();
