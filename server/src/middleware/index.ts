@@ -14,12 +14,15 @@ export interface AuthedRequest extends Request {
 
 export const requireAuth = (req: AuthedRequest, res: Response, next: NextFunction) => {
   const header = req.headers.authorization || '';
+  console.log('Auth header:', header);
   const token = header.startsWith('Bearer ') ? header.slice(7) : undefined;
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
   try {
     const secret = process.env.JWT_SECRET || '';
     if (!secret) return res.status(500).json({ message: 'Server misconfigured' });
+    console.log('Verifying token with secret length:', secret.length);
     const decoded = jwt.verify(token, secret) as JwtPayload;
+    console.log('Decoded token:', decoded);
     req.user = decoded;
     next();
   } catch {

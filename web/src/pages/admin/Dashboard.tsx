@@ -2,6 +2,7 @@ import { Button, Card, Container, Grid, Group, Stack, Text, Title } from '@manti
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authHeader, useAuth } from '../../state/auth';
+import { apiClient } from '../../utils/apiClient';
 
 export default function AdminDashboard() {
   const { token } = useAuth();
@@ -9,12 +10,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch('/api/admin/metrics', { headers: { ...authHeader(token) } });
-      if (res.ok) {
-        setMetrics(await res.json());
-      } else {
+      try {
+        const data = await apiClient<{ users: number; stores: number; ratings: number }>(
+          '/api/admin/metrics', { 
+          headers: { ...authHeader(token) } 
+        });
+        setMetrics(data);
+      } catch (error) {
+        console.error('Failed to load metrics:', error);
         setMetrics(null);
-        //  console.log('Failed to load metrics', res.status);
       }
     })();
   }, [token]);
