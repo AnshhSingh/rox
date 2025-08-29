@@ -13,13 +13,33 @@ import bcrypt from 'bcryptjs';
 
 const app = express();
 
-// Configure CORS middleware before other middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'https://rox-iota.vercel.app',
+// CORS configuration
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, origin?: boolean) => void) {
+    console.log('Incoming origin:', origin);
+    const allowedOrigin = process.env.CORS_ORIGIN || 'https://rox-iota.vercel.app';
+    console.log('Allowed origin:', allowedOrigin);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (origin === allowedOrigin) {
+      callback(null, true);
+    } else {
+      console.log('Origin not allowed');
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-}));
+};
+
+// Apply CORS middleware before other middleware
+app.use(cors(corsOptions));
 
 // Other middleware
 app.use(helmet({

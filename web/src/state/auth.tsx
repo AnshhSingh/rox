@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { apiClient } from '../utils/apiClient';
 
 export type User = { id: string; name: string; email: string; role: 'ADMIN' | 'USER' | 'OWNER' } | null;
 
@@ -24,12 +25,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-    if (!res.ok) return false;
-    const data = await res.json();
-    setUser(data.user);
-    setToken(data.token);
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await apiClient<{ user: User; token: string }>('/api/auth/login', { 
+        method: 'POST', 
+        body: JSON.stringify({ email, password }) 
+      });
+      setUser(response.user);
+      setToken(response.token);
+      localStorage.setItem('auth', JSON.stringify({ user: response.user, token: response.token }));
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
+    }
     localStorage.setItem('auth', JSON.stringify({ user: data.user, token: data.token }));
     return true;
   };

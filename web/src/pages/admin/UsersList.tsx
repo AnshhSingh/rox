@@ -2,6 +2,7 @@ import { Alert, Button, Container, Group, Modal, Select, Stack, Table, TextInput
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authHeader, useAuth } from '../../state/auth';
+import { apiClient } from '../../utils/apiClient';
 
 export default function UsersList() {
   const { token } = useAuth();
@@ -29,33 +30,39 @@ export default function UsersList() {
     if (role) params.set('role', role);
     params.set('sortBy', sortBy);
     params.set('sortOrder', sortOrder);
-    const res = await fetch(`/api/users?${params.toString()}`, { headers: { ...authHeader(token) } });
-    if (res.ok) setUsers((await res.json()).items);
+    try {
+      const data = await apiClient(`/api/users?${params.toString()}`, { 
+        headers: { ...authHeader(token) }
+      });
+      setUsers(data.items);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      setUsers([]);
+    }
   };
 
   useEffect(() => { load(); }, [name, email, address, role]);
 
   const createUser = async () => {
     setError(null);
-    const res = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify({ name: newName, email: newEmail, address: newAddress, password: newPassword, role: newRole })
-    });
-    if (res.ok) {
+    try {
+      await apiClient('/api/users', {
+        method: 'POST',
+        headers: { ...authHeader(token) },
+        body: JSON.stringify({ name: newName, email: newEmail, address: newAddress, password: newPassword, role: newRole })
+      });
       setOpened(false);
       setNewName(''); setNewEmail(''); setNewAddress(''); setNewPassword(''); setNewRole('USER');
       load();
-    } else {
-      const data = await res.json();
-      const errors = data.errors?.fieldErrors;
+    } catch (error: any) {
+      const errors = error.errors?.fieldErrors;
       if (errors) {
         const messages = Object.entries(errors)
           .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(', ')}`)
           .join('\n');
         setError(messages);
       } else {
-        setError('Failed to create user. Please check all fields.');
+        setError(error.message || 'Failed to create user. Please check all fields.');
       }
     }
   };
