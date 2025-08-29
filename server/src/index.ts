@@ -13,31 +13,33 @@ import bcrypt from 'bcryptjs';
 
 const app = express();
 
-app.use(helmet());
-app.use(express.json());
+// Configure CORS middleware before other middleware
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || !process.env.CORS_ORIGIN) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      callback(null, true);
-      return;
-    }
-
-    const allowedOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
-    // Remove any trailing slashes from the origin
-    const normalizedOrigin = origin.replace(/\/$/, '');
-    
-    if (allowedOrigins.includes(normalizedOrigin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.CORS_ORIGIN || 'https://rox-iota.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+// Other middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin" }
+}));
+app.use(express.json());
 app.use(morgan('dev'));
 
+// CORS debug middleware
+app.use((req, res, next) => {
+  console.log('Origin:', req.headers.origin);
+  console.log('CORS_ORIGIN env:', process.env.CORS_ORIGIN);
+  next();
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Handle OPTIONS preflight requests
+app.options('*', cors());
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
