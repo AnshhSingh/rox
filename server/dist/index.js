@@ -309,11 +309,25 @@ var admin_default = router5;
 // src/index.ts
 import bcrypt3 from "bcryptjs";
 var app = express();
-app.use(helmet());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || "https://rox-iota.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin" }
+}));
 app.use(express.json());
-app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
 app.use(morgan("dev"));
+app.use((req, res, next) => {
+  console.log("Origin:", req.headers.origin);
+  console.log("CORS_ORIGIN env:", process.env.CORS_ORIGIN);
+  next();
+});
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.options("*", cors());
 app.use("/api/auth", auth_default);
 app.use("/api/users", users_default);
 app.use("/api/stores", stores_default);

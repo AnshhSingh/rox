@@ -6,10 +6,10 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "build": "prisma generate && tsup src/index.ts --format esm --dts --out-dir dist",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
   "seed": "tsx src/seed.ts",
     "lint": "eslint . --ext .ts",
     "test": "vitest run"
@@ -23,7 +23,10 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "@prisma/client": "^5.18.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "typescript": "^5.5.4",
+    "tsup": "^8.2.4",
+    "prisma": "^5.18.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
