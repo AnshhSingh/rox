@@ -15,7 +15,26 @@ const app = express();
 
 app.use(helmet());
 app.use(express.json());
-app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || !process.env.CORS_ORIGIN) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      callback(null, true);
+      return;
+    }
+
+    const allowedOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+    // Remove any trailing slashes from the origin
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(morgan('dev'));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));

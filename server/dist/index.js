@@ -89,6 +89,18 @@ var requireRoles = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) return res.status(403).json({ message: "Forbidden" });
   next();
 };
+var optionalAuth = (req, _res, next) => {
+  const header = req.headers?.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : void 0;
+  if (!token) return next();
+  try {
+    const secret = process.env.JWT_SECRET || "";
+    const decoded = jwt.verify(token, secret);
+    req.user = decoded;
+  } catch {
+  }
+  next();
+};
 
 // src/routes/auth.ts
 var router = Router();
@@ -180,16 +192,40 @@ router3.post("/", requireAuth, requireRoles("ADMIN"), async (req, res) => {
   const store = await prisma.store.create({ data: parsed.data });
   res.status(201).json({ id: store.id });
 });
-router3.get("/", requireAuth, async (req, res) => {
+router3.get("/", optionalAuth, async (req, res) => {
   const parsed = listQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
-  const { name, email, address, sortBy = "createdAt", sortOrder = "desc", page = 1, pageSize = 20 } = parsed.data;
+  const { name, email, address, sortBy = "name", sortOrder = "asc", page = 1, pageSize = 20 } = parsed.data;
   const where = {};
   if (name) where.name = { contains: name, mode: "insensitive" };
   if (email) where.email = { contains: email, mode: "insensitive" };
   if (address) where.address = { contains: address, mode: "insensitive" };
+  let orderBy;
+  if (sortBy === "rating") {
+    orderBy = {
+      ratings: {
+        _avg: {
+          value: sortOrder
+        }
+      }
+    };
+  } else {
+    orderBy = { [sortBy]: sortOrder };
+  }
   const [items, total] = await Promise.all([
-    prisma.store.findMany({ where, orderBy: { [sortBy]: sortOrder }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.store.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        ratings: {
+          select: {
+            value: true
+          }
+        }
+      }
+    }),
     prisma.store.count({ where })
   ]);
   const userId = req.user?.sub;
@@ -200,17 +236,31 @@ router3.get("/", requireAuth, async (req, res) => {
       const r = await prisma.rating.findUnique({ where: { userId_storeId: { userId, storeId: s.id } } });
       myRating = r?.value ?? null;
     }
-    return { ...s, rating: agg._avg.value ?? null, myRating };
+    return {
+      ...s,
+      rating: agg._avg.value ?? null,
+      myRating,
+      isOwner: userId === s.ownerId
+    };
   }));
   res.json({ items: withAvg, total, page, pageSize });
 });
 router3.get("/owner/my-store/ratings", requireAuth, requireRoles("OWNER"), async (req, res) => {
   const ownerId = req.user.sub;
   const store = await prisma.store.findFirst({ where: { ownerId } });
-  if (!store) return res.json({ raters: [], average: null });
+  if (!store) return res.json({ store: null, raters: [], average: null });
   const ratings = await prisma.rating.findMany({ where: { storeId: store.id }, include: { user: { select: { id: true, name: true, email: true } } } });
   const average = ratings.length ? ratings.reduce((a, r) => a + r.value, 0) / ratings.length : null;
-  res.json({ raters: ratings.map((r) => ({ userId: r.userId, name: r.user.name, email: r.user.email, value: r.value })), average });
+  res.json({
+    store: {
+      id: store.id,
+      name: store.name,
+      email: store.email,
+      address: store.address
+    },
+    raters: ratings.map((r) => ({ userId: r.userId, name: r.user.name, email: r.user.email, value: r.value })),
+    average
+  });
 });
 var stores_default = router3;
 
@@ -229,7 +279,7 @@ router4.get("/me/:storeId", requireAuth, async (req, res) => {
   const rating = await prisma.rating.findUnique({ where: { userId_storeId: { userId, storeId } } });
   res.json({ value: rating?.value ?? null });
 });
-router4.post("/", requireAuth, async (req, res) => {
+router4.post("/", requireAuth, requireRoles("USER"), async (req, res) => {
   const parsed = rateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
   const { storeId, value } = parsed.data;
