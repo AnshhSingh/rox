@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { apiClient } from '../utils/apiClient';
 
 export type User = { id: string; name: string; email: string; role: 'ADMIN' | 'USER' | 'OWNER' } | null;
@@ -12,7 +12,11 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+type AuthProviderProps = {
+  children: ReactNode;
+};
+
+export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   const [user, setUser] = useState<User>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -39,8 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login failed:', error);
       return false;
     }
-    localStorage.setItem('auth', JSON.stringify({ user: data.user, token: data.token }));
-    return true;
   };
 
   const logout = () => {
